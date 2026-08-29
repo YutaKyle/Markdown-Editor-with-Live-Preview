@@ -3,84 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Day 2: Web Markdown Editor</title>
+  <title>Day 2: Advanced Web Markdown Editor</title>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <style>
-    :root {
-      --bg: #1e1e2e;
-      --panel-bg: #181825;
-      --text: #cdd6f4;
-      --border: #313244;
-      --accent: #89b4fa;
-      --toolbar-bg: #11111b;
-    }
-
-    [data-theme="light"] {
-      --bg: #eff1f5;
-      --panel-bg: #e6e9ef;
-      --text: #4c4f69;
-      --border: #ccd0da;
-      --accent: #1e66f5;
-      --toolbar-bg: #dce0e8;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
-
-    .toolbar {
-      background: var(--toolbar-bg);
-      border-bottom: 1px solid var(--border);
-      padding: 0.5rem 1rem;
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .toolbar button {
-      background: var(--panel-bg);
-      color: var(--text);
-      border: 1px solid var(--border);
-      padding: 0.35rem 0.65rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
-    .spacer { flex-grow: 1; }
-    .stats { font-size: 0.85rem; opacity: 0.8; margin-right: 1rem; }
-
-    .container { display: flex; flex: 1; overflow: hidden; }
-    .pane { flex: 1; display: flex; flex-direction: column; width: 50%; }
-    .editor-pane { border-right: 1px solid var(--border); }
-
-    textarea {
-      width: 100%;
-      height: 100%;
-      background: var(--panel-bg);
-      color: var(--text);
-      border: none;
-      padding: 1.5rem;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 1rem;
-      line-height: 1.6;
-      resize: none;
-      outline: none;
-    }
-    .preview {
-      width: 100%;
-      height: 100%;
-      padding: 1.5rem;
-      overflow-y: auto;
-      background: var(--bg);
-      line-height: 1.6;
-    }
-
-    .preview h1, .preview h2, .preview h3 { margin-bottom: 0.75rem; color: var(--accent); }
-    .preview p { margin-bottom: 1rem; }
-    .preview code { background: var(--panel-bg); padding: 0.2rem 0.4rem; border-radius: 4px; }
-    .preview pre { background: var(--panel-bg); padding: 1rem; border-radius: 6px; overflow-x: auto; margin-bottom: 1rem; }
-    .preview blockquote { border-left: 4px solid var(--accent); padding-left: 1rem; opacity: 0.8; margin-bottom: 1rem; }
-  </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.8.0/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.8.0/lib/highlight.min.js"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -90,75 +17,32 @@
     <button onclick="insertText('# ')">H1</button>
     <button onclick="insertText('## ')">H2</button>
     <button onclick="insertText('> ')">Quote</button>
-    <button onclick="insertText('```\n', '\n```')">Code</button>
+    <button onclick="insertText('```js\n', '\n```')">Code</button>
+    <button onclick="insertText('[', '](https://)')">Link</button>
+    <button onclick="insertText('![Alt Text](', ')')">Image</button>
+    <button onclick="insertText('- ')">List</button>
+    <button onclick="insertText('| Header | Header |\n| --- | --- |\n| Cell | Cell |')">Table</button>
+    <button class="danger" onclick="clearEditor()">Clear</button>
 
     <div class="spacer"></div>
 
-    <span class="stats" id="stats">Words: 0 | Chars: 0</span>
-    <button onclick="downloadMarkdown()">Download .md</button>
-    <button onclick="toggleTheme()">Toggle Theme</button>
+    <span class="stats" id="stats">Words: 0 | Chars: 0 | Lines: 0 | Paras: 0</span>
+    <button onclick="copyHTML()">Copy HTML</button>
+    <button onclick="downloadFile('md')">.MD</button>
+    <button onclick="downloadFile('html')">.HTML</button>
+    <button onclick="toggleFocus()">Focus</button>
+    <button onclick="toggleTheme()">Theme</button>
   </div>
 
   <div class="container">
     <div class="pane editor-pane">
       <textarea id="editor" placeholder="Type your markdown here..."></textarea>
     </div>
-    <div class="pane">
+    <div class="pane preview-pane">
       <div id="preview" class="preview"></div>
     </div>
   </div>
 
-  <script>
-    const editor = document.getElementById('editor');
-    const preview = document.getElementById('preview');
-    const stats = document.getElementById('stats');
-
-    const savedDraft = localStorage.getItem('md-draft');
-    if (savedDraft) {
-      editor.value = savedDraft;
-    } else {
-      editor.value = `# Welcome to your Day 2 Markdown Editor!\n\nStart typing on the left to see the **live preview** on the right.\n\n* Auto-saves to your browser\n* Export as a \`.md\` file\n* Built with raw JS + Marked.js`;
-    }
-
-    function updateEditor() {
-      const text = editor.value;
-      preview.innerHTML = marked.parse(text);
-      localStorage.setItem('md-draft', text);
-
-      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-      const chars = text.length;
-      stats.textContent = `Words: ${words} | Chars: ${chars}`;
-    }
-
-    function insertText(before, after = '') {
-      const start = editor.selectionStart;
-      const end = editor.selectionEnd;
-      const selectedText = editor.value.substring(start, end);
-      const replacement = before + selectedText + after;
-
-      editor.value = editor.value.substring(0, start) + replacement + editor.value.substring(end);
-      editor.focus();
-      editor.selectionEnd = start + before.length + selectedText.length;
-      updateEditor();
-    }
-
-    function downloadMarkdown() {
-      const blob = new Blob([editor.value], { type: 'text/markdown' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'document.md';
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function toggleTheme() {
-      const currentTheme = document.body.getAttribute('data-theme');
-      document.body.setAttribute('data-theme', currentTheme === 'light' ? 'dark' : 'light');
-    }
-
-    editor.addEventListener('input', updateEditor);
-    updateEditor();
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
